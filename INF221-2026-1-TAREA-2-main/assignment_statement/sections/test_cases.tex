@@ -1,0 +1,118 @@
+\subsubsection{Generación de casos de prueba}
+
+Los estudiantes deberán implementar un generador de casos de prueba en Python llamado \texttt{testcases\_generator.py}, ubicado en:
+
+\begin{center}
+    \texttt{code/implementation/scripts/testcases\_generator.py}
+\end{center}
+
+\textbf{Requisitos del generador:}
+\begin{itemize}
+    \item Debe generar archivos de entrada válidos para el problema \textbf{AniMarathon}.
+    \item Cada archivo de entrada debe llamarse:
+    \[
+        \texttt{testcases\_\{n\}\_\{i\}.txt}
+    \]
+    donde:
+    \begin{itemize}
+        \item \texttt{\{n\}} representa la cantidad de animes del caso de prueba.
+        \item \texttt{\{i\}} es un identificador único para diferenciar múltiples casos con la misma cantidad de animes.
+    \end{itemize}
+
+    \item Formato del archivo de entrada:
+    \begin{itemize}
+        \item La primera línea contiene tres enteros $n$, $M$ y $E$, donde:
+        \begin{itemize}
+            \item $n$ es la cantidad de animes disponibles.
+            \item $M$ es la cantidad máxima de minutos disponibles.
+            \item $E$ es la energía máxima disponible.
+        \end{itemize}
+
+        \item Para cada anime $i$, se entrega una línea con:
+        \[
+        \texttt{anime}_i \ q_i \ b_i
+        \]
+        donde:
+        \begin{itemize}
+            \item $\texttt{anime}_i$ es el nombre del anime, representado por un string sin espacios.
+            \item $q_i$ es la cantidad de capítulos del anime.
+            \item $b_i$ es el bono de satisfacción por completar todos los capítulos del anime.
+        \end{itemize}
+
+        \item Luego, para cada uno de los $q_i$ capítulos del anime $i$, se entrega una línea con:
+        \[
+        t_{i,j} \ c_{i,j} \ v_{i,j}
+        \]
+        donde:
+        \begin{itemize}
+            \item $t_{i,j}$ es la duración del capítulo en minutos.
+            \item $c_{i,j}$ es el costo de energía del capítulo.
+            \item $v_{i,j}$ es la satisfacción obtenida al ver el capítulo.
+        \end{itemize}
+    \end{itemize}
+
+    \item El generador debe permitir crear múltiples casos de prueba de manera automática, variando la cantidad de animes, cantidad de capítulos, minutos disponibles, energía disponible, puntajes de satisfacción y bonos de completación.
+\end{itemize}
+
+\begin{mdframed}
+    Los archivos generados serán utilizados por los algoritmos implementados en C++ para probar la corrección y eficiencia de las soluciones de fuerza bruta, greedy y programación dinámica.
+\end{mdframed}
+
+\subsubsection{Tipos de casos de prueba esperados}
+
+El generador debe ser capaz de producir, al menos, los siguientes tipos de casos:
+
+\begin{enumerate}
+    \item \textbf{Casos pequeños:} utilizados para validar la correctitud del algoritmo de fuerza bruta y compararlo con programación dinámica. Se recomiendan casos con pocos animes y pocos capítulos, por ejemplo:
+    \[
+        n \in \{3, 5, 8\}
+    \]
+    con una cantidad total de capítulos pequeña.
+
+    \item \textbf{Casos medianos:} utilizados para comparar las heurísticas greedy con la solución óptima obtenida por programación dinámica. Se recomiendan valores como:
+    \[
+        n \in \{20, 40, 80\}
+    \]
+
+    \item \textbf{Casos grandes:} utilizados para medir rendimiento de los algoritmos eficientes. Se recomiendan valores como:
+    \[
+        n \in \{100, 150, 200\}
+    \]
+    En estos casos no se espera que fuerza bruta sea ejecutable en tiempos razonables.
+\end{enumerate}
+    Se recomienda usar el tipo de dato long long para prevenir errores de redondeo
+
+\subsubsection{Ejemplo de caso de prueba válido}
+
+El siguiente archivo corresponde a un caso de prueba válido para el problema:
+
+\begin{verbatim}
+4 240 90
+shonen_quest 3 25
+45 18 40
+50 22 45
+55 25 60
+romcom_days 2 15
+30 10 25
+35 12 30
+mecha_nova 2 50
+60 30 65
+70 35 75
+slice_cafe 1 5
+25 8 18
+\end{verbatim}
+
+\subsubsection{Validaciones esperadas}
+
+Los casos de prueba generados deben permitir verificar que:
+
+\begin{itemize}
+    \item Los algoritmos no seleccionen capítulos aislados sin seleccionar los capítulos anteriores del mismo anime.
+    \item Los algoritmos respeten el límite de minutos disponibles $M$.
+    \item Los algoritmos respeten el límite de energía disponible $E$.
+    \item Los bonos de completación se sumen únicamente cuando se seleccionan todos los capítulos de un anime.
+    \item El algoritmo de fuerza bruta y el de programación dinámica entreguen el mismo resultado en casos pequeños.
+    \item Las heurísticas greedy entreguen soluciones válidas, aunque no necesariamente óptimas.
+    \item La programación dinámica pueda resolver casos medianos y grandes dentro de tiempos razonables.
+    \item Los gráficos permitan observar diferencias claras entre los enfoques implementados.
+\end{itemize}

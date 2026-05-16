@@ -1,0 +1,92 @@
+\documentclass[10pt,spanish]{article} % Tipo y tamaño de letra del documento.
+
+
+\input{preamble.tex} % Archivo con paquetes y configuraciones
+
+
+\pagestyle{fancy}
+
+
+\input{../report/author.tex}
+
+\fancyhf{}%
+\fancyfoot[R]{\thepage}%
+ 
+\fancyfoot[R]{\textsc{Algoritmos y Complejidad} \\
+\sem \\
+}
+\fancyfoot[L]{Campus Casa Central / Campus San Joaquín \\ Valparaíso / Santiago}
+\fancyfoot[C]{\thepage}
+\rhead{\sem}
+\lhead{INF-221}
+\renewcommand{\headrulewidth}{0.4pt}% Line at the header invisible
+\renewcommand{\footrulewidth}{0.4pt}% Footer line not visible with 0pt
+
+
+
+
+\newbool{programs}
+\boolfalse{programs}
+
+
+\chead{TAREA \tnum~  }
+
+\title{
+  \huge
+  \textbf{ENUNCIADO TAREA \tnum~ \\ ALGORITMOS Y COMPLEJIDAD} \\[1ex]
+  \emph{\textquote{AniMaraton}} \\[1ex]
+  {\normalsize Fecha límite de entrega: \tcm{\deadline}}\\
+  }
+
+\author{
+  Equipo \textsc{Algoritmos y Complejidad} 2026-1
+}
+
+
+\date{
+  \small
+  \today\\
+  \currenttime\\
+  Versión 0.0
+}
+
+
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy} %pagina 1 con header y footer
+\vspace{-1.0\baselineskip}
+
+\setlength{\epigraphwidth}{0.7\textwidth}
+
+
+
+\setcounter{tocdepth}{2}
+\tableofcontents
+
+\newpage
+\section{Objetivos}
+\input{sections/objectives}
+
+\newpage
+\section{Especificaciones}
+\input{sections/specifications}
+
+
+\newpage
+\section{Condiciones de entrega}
+\input{sections/rules}
+
+\newpage
+\appendix
+
+\section{Casos de prueba}\label{sec:test_cases}
+\input{sections/test_cases}
+
+
+\printbibliography
+
+
+\end{document}
+
+

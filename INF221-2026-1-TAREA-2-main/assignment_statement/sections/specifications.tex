@@ -1,0 +1,92 @@
+    En esta sección se describen los pasos a seguir para completar la tarea, la cual consiste en desarrollar código
+    en C++ «\nameref{subsec:implementations}» y en realizar un informe. Se espera que cada
+    uno de los pasos se realice de manera ordenada y siguiendo las instrucciones dadas.
+
+    \begin{mdframed}
+        Abra este documento en algún lector de PDF que permita hipervínculos, ya que en este documento el texto en
+        color \textcolor{blue}{azul} suele indicar un hipervínculo.
+    \end{mdframed}
+
+\subsection{Implementaciones} \label{subsec:implementations}
+
+\begin{enumerate}[(1)]
+    \item Implementar cada uno de los algoritmos en C++:
+
+    \begin{itemize}
+        \item \textbf{Algoritmo Fuerza Bruta:} Resolver el problema mediante un enfoque exhaustivo que permita obtener una solución óptima para instancias pequeñas. \\
+        Archivo: \texttt{code/implementation/algorithms/brute-force.cpp}.
+        
+        \item \textbf{Algoritmos Greedy:} Implementar dos heurísticas greedy (\textit{subóptimas}) para el problema. Estas heurísticas deben construir una selección válida de capítulos, aunque no necesariamente óptima. \\
+        Archivos: \texttt{code/implementation/algorithms/greedy\{1,2\}.cpp}.
+
+        Cada heurística greedy debe utilizar un criterio local distinto. Dicho criterio debe estar claramente descrito y justificado en el informe.
+        
+        \item \textbf{Programación Dinámica:} Implementar una solución óptima para el problema mediante programación dinámica. \\
+        Archivo: \texttt{code/implementation/algorithms/dynamic-programming.cpp}.
+    \end{itemize}
+
+    \item \textbf{Restricciones de validez de una solución:}
+
+    Una solución entregada por cualquier algoritmo debe cumplir las siguientes condiciones:
+
+    \begin{itemize}
+        \item Para cada anime, sólo se puede seleccionar un prefijo de capítulos.
+        \item No se permite seleccionar un capítulo si no fueron seleccionados todos los capítulos anteriores del mismo anime.
+        \item La suma total de minutos utilizados no puede exceder $M$.
+        \item La suma total de energía utilizada no puede exceder $E$.
+        \item El bono de completación de un anime se suma únicamente si se seleccionan todos sus capítulos.
+    \end{itemize}
+
+    \item \textbf{Mediciones de tiempo y memoria:} Implementar el programa principal en C++ \texttt{code/implementation/general.cpp} y su respectivo \texttt{makefile} que ejecute los algoritmos y genere archivos de salida en los directorios:
+
+    \begin{itemize}
+        \item \texttt{code/implementation/data/measurements/}
+        \item \texttt{code/implementation/data/outputs/}
+    \end{itemize}
+
+    Los archivos generados deben permitir comparar el tiempo de ejecución, el uso de memoria y el resultado obtenido por cada algoritmo.
+
+    \item \textbf{Generación de gráficos:} Implementar scripts en Python que lean los archivos de medición y generen gráficos en formato PNG en:
+
+    \begin{itemize}
+        \item \texttt{code/implementation/data/plots/}
+        \item Scripts de ejemplo: \texttt{code/implementation/scripts/testcases\_generator.py} y \texttt{plot\_generator.py}.
+    \end{itemize}
+
+    Se espera generar gráficos que permitan analizar:
+
+    \begin{itemize}
+        \item Tiempo de ejecución según tamaño de entrada.
+        \item Uso de memoria según tamaño de entrada.
+        \item Calidad de solución de los algoritmos greedy respecto de la solución óptima.
+        \item Comportamiento de los algoritmos al variar la cantidad de animes, capítulos, minutos disponibles y energía disponible.
+    \end{itemize}
+
+    \item \textbf{Documentación:} Documentar cada uno de los pasos anteriores:
+
+    \begin{itemize}
+        \item Completar el archivo \texttt{README.md} del directorio \texttt{code}.
+        \item Documentar en cada uno de sus programas, al inicio de cada archivo, fuentes de información, referencias y bibliografía utilizada.
+        \item Indicar claramente cómo compilar, ejecutar y generar los casos de prueba.
+    \end{itemize}
+\end{enumerate}
+
+    Generar un informe en \LaTeX\ que contenga los resultados obtenidos y una discusión sobre ellos.
+
+    \begin{itemize}
+        \item No se debe modificar la estructura del informe.
+        \item Las indicaciones se encuentran en el archivo \texttt{README.md} del repositorio y en la plantilla de \LaTeX.
+        \item El informe final compilado (\texttt{reporte.pdf}) debe generarse dentro de la carpeta \texttt{report/}.
+    \end{itemize}
+
+    El informe debe incluir, al menos, los siguientes puntos:
+
+    \begin{itemize}
+        \item Explicación del algoritmo de fuerza bruta.
+        \item Explicación de las dos heurísticas greedy implementadas.
+        \item Explicación de la solución mediante programación dinámica.
+        \item Análisis de complejidad temporal y espacial de cada enfoque.
+        \item Comparación experimental de tiempo y memoria.
+        \item Comparación de calidad de solución entre greedy y programación dinámica.
+        \item Conclusiones sobre el comportamiento de los algoritmos.
+    \end{itemize}

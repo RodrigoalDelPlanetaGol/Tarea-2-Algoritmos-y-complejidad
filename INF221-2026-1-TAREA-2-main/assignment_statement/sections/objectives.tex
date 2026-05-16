@@ -1,0 +1,208 @@
+El objetivo de esta tarea \tnum~ es comparar diferentes técnicas de resolución de un mismo problema de optimización, evaluando su \textbf{tiempo de ejecución}, \textbf{uso de memoria} y \textbf{calidad de solución}.
+
+Deberán implementar tres enfoques: un \textbf{algoritmo de fuerza bruta}, dos \textbf{heurísticas greedy subóptimas} (2 algoritmos distintos que no garantizan la solución óptima) y un \textbf{algoritmo de programación dinámica}. Además, se analizará el rendimiento y la calidad de las soluciones para determinar qué tan cercanas están al resultado óptimo.
+
+\subsection{Problema}
+
+En \textbf{AniMarathon}, una plataforma de streaming está por terminar una promoción de acceso gratuito. Usted quiere aprovechar las últimas horas disponibles para ver la mayor cantidad de contenido valioso posible antes de que expire su suscripción.
+
+La plataforma tiene distintos animes disponibles. Cada anime está compuesto por una cantidad determinada de capítulos. Cada capítulo tiene una duración en minutos, un costo de energía mental y un puntaje de satisfacción. Además, si una persona logra terminar todos los capítulos de un anime, recibe un bono adicional de satisfacción por completar la historia.
+
+Sin embargo, no se permite ver capítulos aislados de una serie sin haber visto los anteriores. Es decir, para cada anime se puede ver un prefijo de capítulos: ninguno, solo el primer capítulo, los dos primeros capítulos, los tres primeros capítulos, y así sucesivamente. Si se ve el capítulo $j$ de un anime, entonces necesariamente se deben haber visto todos los capítulos anteriores de ese mismo anime.
+
+Usted dispone de una cantidad máxima de minutos $M$ y una cantidad máxima de energía $E$. El objetivo es decidir cuántos capítulos ver de cada anime para maximizar la satisfacción total, sin exceder el tiempo ni la energía disponibles.
+
+Cada anime $i$ tiene $q_i$ capítulos y un bono de completación $b_i$. Cada capítulo $j$ del anime $i$ se representa mediante:
+
+\[
+(t_{i,j}, c_{i,j}, v_{i,j})
+\]
+
+donde:
+
+\begin{itemize}
+    \item $t_{i,j}$ es la duración en minutos del capítulo $j$ del anime $i$.
+    \item $c_{i,j}$ es el costo de energía del capítulo $j$ del anime $i$.
+    \item $v_{i,j}$ es el puntaje de satisfacción del capítulo $j$ del anime $i$.
+\end{itemize}
+
+Para cada anime $i$, se debe escoger un valor $k_i$ tal que:
+
+\[
+0 \leq k_i \leq q_i
+\]
+
+donde $k_i$ representa la cantidad de capítulos consecutivos vistos desde el inicio del anime $i$.
+
+La satisfacción obtenida por el anime $i$ se define como:
+
+\[
+\sum_{j=1}^{k_i} v_{i,j}
+\]
+
+y, si $k_i = q_i$, se agrega además el bono de completación $b_i$.
+
+El objetivo es maximizar la satisfacción total:
+
+\[
+\text{MaxSatisfaccion}
+=
+\sum_{i=1}^{n}
+\left(
+\sum_{j=1}^{k_i} v_{i,j}
++
+B_i(k_i)
+\right)
+\]
+
+donde:
+
+\[
+B_i(k_i)=
+\begin{cases}
+b_i & \text{si } k_i=q_i\\
+0 & \text{en otro caso}
+\end{cases}
+\]
+
+sujeto a las restricciones:
+
+\[
+\sum_{i=1}^{n}\sum_{j=1}^{k_i} t_{i,j} \leq M
+\]
+
+\[
+\sum_{i=1}^{n}\sum_{j=1}^{k_i} c_{i,j} \leq E
+\]
+
+\subsubsection*{Dominio de los valores y casos de prueba}
+
+Para esta tarea, los valores de los parámetros cumplen las siguientes restricciones:
+
+\begin{itemize}
+    \item $n$, la cantidad de animes disponibles, es un entero tal que $1 \leq n \leq 200$.
+    \item $q_i$, la cantidad de capítulos del anime $i$, es un entero tal que $1 \leq q_i \leq 30$.
+    \item La cantidad total de capítulos, $Q=\sum_{i=1}^{n} q_i$, cumple $1 \leq Q \leq 700$.
+    \item $M$, la cantidad máxima de minutos disponibles, cumple $1 \leq M \leq 3000$.
+    \item $E$, la energía máxima disponible, cumple $1 \leq E \leq 500$.
+    \item $t_{i,j}$, la duración de cada capítulo, cumple $1 \leq t_{i,j} \leq 300$.
+    \item $c_{i,j}$, el costo de energía de cada capítulo, cumple $1 \leq c_{i,j} \leq 100$.
+    \item $v_{i,j}$, la satisfacción de cada capítulo, cumple $1 \leq v_{i,j} \leq 10^9$.
+    \item $b_i$, el bono por completar el anime $i$, cumple $0 \leq b_i \leq 10^9$.
+    \item Los nombres de los animes son strings formados por letras minúsculas, números o guiones bajos, sin espacios.
+\end{itemize}
+
+\subsection{Entrada y salida}
+
+\subsubsection*{Formato de entrada}
+
+El input se presenta de la siguiente manera:
+
+\begin{verbatim}
+n M E
+anime_1 q_1 b_1
+t_1_1 c_1_1 v_1_1
+t_1_2 c_1_2 v_1_2
+...
+t_1_q1 c_1_q1 v_1_q1
+anime_2 q_2 b_2
+t_2_1 c_2_1 v_2_1
+...
+anime_n q_n b_n
+t_n_1 c_n_1 v_n_1
+...
+t_n_qn c_n_qn v_n_qn
+\end{verbatim}
+
+Donde:
+
+\begin{itemize}
+    \item $n$ es la cantidad de animes disponibles.
+    \item $M$ es la cantidad máxima de minutos disponibles.
+    \item $E$ es la energía máxima disponible.
+    \item $q_i$ es la cantidad de capítulos del anime $i$.
+    \item $b_i$ es el bono de satisfacción por completar el anime $i$.
+    \item Cada capítulo entrega su duración, costo de energía y satisfacción.
+\end{itemize}
+
+\subsubsection*{Formato de salida}
+
+\begin{verbatim}
+MaxSatisfaccion
+\end{verbatim}
+
+donde \texttt{MaxSatisfaccion} es la máxima satisfacción total que se puede obtener respetando las restricciones del problema.
+
+\subsubsection*{Ejemplo de entrada}
+
+\begin{verbatim}
+4 240 90
+shonen_quest 3 25
+45 18 40
+50 22 45
+55 25 60
+romcom_days 2 15
+30 10 25
+35 12 30
+mecha_nova 2 50
+60 30 65
+70 35 75
+slice_cafe 1 5
+25 8 18
+\end{verbatim}
+
+\subsubsection*{Ejemplo de salida}
+
+\begin{verbatim}
+260
+\end{verbatim}
+
+\subsubsection*{Explicación}
+
+Una selección óptima consiste en:
+
+\begin{itemize}
+    \item Ver completo \texttt{mecha\_nova}:
+    \[
+    60+70=130 \text{ minutos}
+    \]
+    \[
+    30+35=65 \text{ energía}
+    \]
+    \[
+    65+75+50=190 \text{ satisfacción}
+    \]
+
+    \item Ver completo \texttt{romcom\_days}:
+    \[
+    30+35=65 \text{ minutos}
+    \]
+    \[
+    10+12=22 \text{ energía}
+    \]
+    \[
+    25+30+15=70 \text{ satisfacción}
+    \]
+\end{itemize}
+
+El uso total de recursos es:
+
+\[
+130+65=195 \leq 240
+\]
+
+\[
+65+22=87 \leq 90
+\]
+
+La satisfacción total obtenida es:
+
+\[
+190+70=260
+\]
+
+Por lo tanto, la respuesta correcta para este caso es:
+
+\[
+\text{MaxSatisfaccion}=260
+\]
