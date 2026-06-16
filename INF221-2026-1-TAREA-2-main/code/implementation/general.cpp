@@ -8,27 +8,11 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
-/*
- * INF-221 - Tarea 2: AniMarathon
- * Programa general de medición para Windows/MinGW.
- *
- * Qué hace:
- *   - Recorre los .txt dentro de una carpeta de inputs.
- *   - Ejecuta cada algoritmo como proceso independiente.
- *   - Guarda la salida de cada algoritmo en data/outputs/<algoritmo>/.
- *   - Registra tiempo y memoria en data/measurements/measurements.csv.
- *
- * Ventaja de esta versión:
- *   - No usa std::filesystem.
- *   - Evita los problemas de compilación que dan algunas versiones de MinGW.
- *
- * Compilación sugerida:
- *   g++ -std=c++17 -O2 general.cpp -o general.exe -lpsapi
- */
-
-using namespace std;
+using std::string;
+using std::vector;
 
 struct RunResult {
     bool launched = false;
@@ -41,7 +25,7 @@ struct RunResult {
 };
 
 static string normalizeSlashes(string s) {
-    replace(s.begin(), s.end(), '/', '\\');
+    std::replace(s.begin(), s.end(), '/', '\\');
     return s;
 }
 
@@ -49,59 +33,63 @@ static string joinPath(const string& a, const string& b) {
     if (a.empty()) return normalizeSlashes(b);
     string left = normalizeSlashes(a);
     string right = normalizeSlashes(b);
-    if (!left.empty() && left.back() != '\\') {
-        left.push_back('\\');
-    }
+    if (!left.empty() && left.back() != '\\') left.push_back('\\');
     return left + right;
 }
 
 static string fileStem(const string& path) {
-    string normalized = normalizeSlashes(path);
-    size_t slash = normalized.find_last_of('\\');
-    string name = (slash == string::npos) ? normalized : normalized.substr(slash + 1);
+    string p = normalizeSlashes(path);
+    size_t slash = p.find_last_of('\\');
+    string name = (slash == string::npos) ? p : p.substr(slash + 1);
     size_t dot = name.find_last_of('.');
-    if (dot == string::npos) return name;
-    return name.substr(0, dot);
+    return (dot == string::npos) ? name : name.substr(0, dot);
+}
+
+static string getExecutableDir() {
+    char buffer[MAX_PATH] = {0};
+    DWORD len = GetModuleFileNameA(nullptr, buffer, MAX_PATH);
+    string full(buffer, buffer + len);
+    size_t slash = full.find_last_of("\\/");
+    if (slash == string::npos) return string();
+    return full.substr(0, slash);
+}
+
+static string resolvePath(const string& baseDir, const string& path) {
+    string p = normalizeSlashes(path);
+    if (p.size() >= 2 && p[1] == ':') return p;
+    if (!p.empty() && (p[0] == '\\' || p[0] == '/')) return p;
+    if (baseDir.empty()) return p;
+    return joinPath(baseDir, p);
 }
 
 static bool ensureDirRecursive(const string& rawPath) {
     string path = normalizeSlashes(rawPath);
     if (path.empty()) return true;
 
-    string current;
-    size_t i = 0;
-
-    // Manejo simple de rutas tipo C:\...
-    if (path.size() >= 3 && path[1] == ':' && path[2] == '\\') {
-        current = path.substr(0, 3);
-        i = 3;
-    }
-
-    for (; i < path.size(); ++i) {
-        char ch = path[i];
-        if (ch == '\\') {
-            if (!current.empty()) {
-                if (!CreateDirectoryA(current.c_str(), nullptr)) {
-                    DWORD err = GetLastError();
-                    if (err != ERROR_ALREADY_EXISTS) {
-                        return false;
-                    }
-                }
-            }
-            if (current.empty() || current.back() != '\\') {
-                current.push_back('\\');
-            }
-        } else {
-            current.push_back(ch);
+    vector<string> parts;
+    size_t start = 0;
+    for (size_t i = 0; i <= path.size(); ++i) {
+        if (i == path.size() || path[i] == '\\') {
+            parts.push_back(path.substr(start, i - start));
+            start = i + 1;
         }
     }
 
-    if (!current.empty()) {
+    string current;
+    size_t idx = 0;
+    if (!parts.empty() && parts[0].size() == 2 && parts[0][1] == ':') {
+        current = parts[0] + "\\";
+        idx = 1;
+    }
+
+    for (; idx < parts.size(); ++idx) {
+        const string& part = parts[idx];
+        if (part.empty()) continue;
+        if (!current.empty() && current.back() != '\\') current.push_back('\\');
+        current += part;
         if (!CreateDirectoryA(current.c_str(), nullptr)) {
             DWORD err = GetLastError();
-            if (err != ERROR_ALREADY_EXISTS) {
-                return false;
-            }
+            if (err != ERROR_ALREADY_EXISTS) return false;
         }
     }
     return true;
@@ -113,9 +101,7 @@ static vector<string> listTxtFiles(const string& dir) {
 
     WIN32_FIND_DATAA fd{};
     HANDLE hFind = FindFirstFileA(pattern.c_str(), &fd);
-    if (hFind == INVALID_HANDLE_VALUE) {
-        return files;
-    }
+    if (hFind == INVALID_HANDLE_VALUE) return files;
 
     do {
         if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
@@ -124,23 +110,29 @@ static vector<string> listTxtFiles(const string& dir) {
     } while (FindNextFileA(hFind, &fd));
 
     FindClose(hFind);
-    sort(files.begin(), files.end());
+    std::sort(files.begin(), files.end());
     return files;
 }
 
 static bool writeTextFile(const string& path, const string& text) {
-    ofstream out(path, ios::binary | ios::trunc);
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
     if (!out) return false;
     out << text;
     return true;
 }
 
 static string readTextFile(const string& path) {
-    ifstream in(path, ios::binary);
+    std::ifstream in(path, std::ios::binary);
     if (!in) return "";
-    stringstream ss;
+    std::stringstream ss;
     ss << in.rdbuf();
     return ss.str();
+}
+
+static bool readCaseHeader(const string& inputFile, int& n, int& M, int& E) {
+    std::ifstream in(inputFile);
+    if (!in) return false;
+    return static_cast<bool>(in >> n >> M >> E);
 }
 
 static RunResult runProcessWindows(const string& exe,
@@ -149,26 +141,33 @@ static RunResult runProcessWindows(const string& exe,
                                    const string& stderrFile) {
     RunResult result;
 
-    HANDLE hInput = CreateFileA(inputFile.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
-                                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (hInput == INVALID_HANDLE_VALUE) {
-        return result;
-    }
+    SECURITY_ATTRIBUTES sa{};
+    sa.nLength = sizeof(sa);
+    sa.lpSecurityDescriptor = nullptr;
+    sa.bInheritHandle = TRUE;
 
-    HANDLE hOut = CreateFileA(stdoutFile.c_str(), GENERIC_WRITE, 0, nullptr,
+    HANDLE hInput = CreateFileA(inputFile.c_str(), GENERIC_READ, FILE_SHARE_READ, &sa,
+                                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (hInput == INVALID_HANDLE_VALUE) return result;
+
+    HANDLE hOut = CreateFileA(stdoutFile.c_str(), GENERIC_WRITE, 0, &sa,
                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (hOut == INVALID_HANDLE_VALUE) {
         CloseHandle(hInput);
         return result;
     }
 
-    HANDLE hErr = CreateFileA(stderrFile.c_str(), GENERIC_WRITE, 0, nullptr,
+    HANDLE hErr = CreateFileA(stderrFile.c_str(), GENERIC_WRITE, 0, &sa,
                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (hErr == INVALID_HANDLE_VALUE) {
         CloseHandle(hInput);
         CloseHandle(hOut);
         return result;
     }
+
+    SetHandleInformation(hInput, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+    SetHandleInformation(hOut, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+    SetHandleInformation(hErr, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
 
     STARTUPINFOA si{};
     si.cb = sizeof(si);
@@ -179,14 +178,14 @@ static RunResult runProcessWindows(const string& exe,
 
     PROCESS_INFORMATION pi{};
 
-    string cmd = "\"" + exe + "\"";
-    vector<char> mutableCmd(cmd.begin(), cmd.end());
-    mutableCmd.push_back('\0');
+    string quotedExe = "\"" + exe + "\"";
+    vector<char> cmdLine(quotedExe.begin(), quotedExe.end());
+    cmdLine.push_back('\0');
 
-    auto start = chrono::steady_clock::now();
+    auto t0 = std::chrono::steady_clock::now();
     BOOL ok = CreateProcessA(
         nullptr,
-        mutableCmd.data(),
+        cmdLine.data(),
         nullptr,
         nullptr,
         TRUE,
@@ -206,12 +205,12 @@ static RunResult runProcessWindows(const string& exe,
     }
 
     WaitForSingleObject(pi.hProcess, INFINITE);
-    auto end = chrono::steady_clock::now();
+    auto t1 = std::chrono::steady_clock::now();
 
     DWORD exitCode = 0;
     GetExitCodeProcess(pi.hProcess, &exitCode);
     result.returnCode = static_cast<int>(exitCode);
-    result.timeMs = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+    result.timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
     result.finished = true;
 
     PROCESS_MEMORY_COUNTERS pmc{};
@@ -231,111 +230,118 @@ static RunResult runProcessWindows(const string& exe,
 }
 
 static string getArgValue(int argc, char* argv[], const string& flag, const string& defaultValue) {
-    for (int i = 1; i < argc; ++i) {
-        if (flag == argv[i] && i + 1 < argc) {
-            return argv[i + 1];
-        }
+    for (int i = 1; i + 1 < argc; ++i) {
+        if (flag == argv[i]) return argv[i + 1];
     }
     return defaultValue;
 }
 
 int main(int argc, char* argv[]) {
-    string inputsDir = getArgValue(argc, argv, "--inputs", "data/inputs");
-    string outputsDir = getArgValue(argc, argv, "--outputs", "data/outputs");
-    string measurementsDir = getArgValue(argc, argv, "--measurements", "data/measurements");
+    string baseDir = getExecutableDir();
 
-    string bruteExe = getArgValue(argc, argv, "--brute", "algorithms/brute-force.exe");
-    string dpExe = getArgValue(argc, argv, "--dp", "algorithms/dynamic-programming.exe");
-    string greedy1Exe = getArgValue(argc, argv, "--greedy1", "algorithms/greedy1.exe");
-    string greedy2Exe = getArgValue(argc, argv, "--greedy2", "algorithms/greedy2.exe");
+    string inputsDir = resolvePath(baseDir, getArgValue(argc, argv, "--inputs", "data/inputs"));
+    string outputsDir = resolvePath(baseDir, getArgValue(argc, argv, "--outputs", "data/outputs"));
+    string measurementsDir = resolvePath(baseDir, getArgValue(argc, argv, "--measurements", "data/measurements"));
+
+    string bruteExe = resolvePath(baseDir, getArgValue(argc, argv, "--brute", "algorithms/brute-force.exe"));
+    string dpExe = resolvePath(baseDir, getArgValue(argc, argv, "--dp", "algorithms/dynamic-programming.exe"));
+    string greedy1Exe = resolvePath(baseDir, getArgValue(argc, argv, "--greedy1", "algorithms/greedy1.exe"));
+    string greedy2Exe = resolvePath(baseDir, getArgValue(argc, argv, "--greedy2", "algorithms/greedy2.exe"));
 
     if (!ensureDirRecursive(outputsDir) || !ensureDirRecursive(measurementsDir)) {
-        cerr << "No se pudieron crear las carpetas de salida/medición.\n";
+        std::cerr << "No se pudieron crear carpetas de salida/medicion.\n";
         return 1;
     }
 
-    const vector<pair<string, string>> algorithms = {
+    vector<std::pair<string, string>> algos = {
         {"brute", bruteExe},
         {"dp", dpExe},
         {"greedy1", greedy1Exe},
         {"greedy2", greedy2Exe}
     };
 
-    for (const auto& algo : algorithms) {
-        if (!ensureDirRecursive(joinPath(outputsDir, algo.first))) {
-            cerr << "No se pudo crear la carpeta de salida para " << algo.first << '\n';
+    for (const auto& a : algos) {
+        if (!ensureDirRecursive(joinPath(outputsDir, a.first))) {
+            std::cerr << "No se pudo crear carpeta para " << a.first << "\n";
             return 1;
         }
     }
 
     vector<string> inputFiles = listTxtFiles(inputsDir);
     if (inputFiles.empty()) {
-        cerr << "No se encontraron archivos .txt en: " << inputsDir << '\n';
+        std::cerr << "No se encontraron archivos .txt en: " << inputsDir << '\n';
         return 1;
     }
 
-    for (const auto& algo : algorithms) {
-        if (GetFileAttributesA(algo.second.c_str()) == INVALID_FILE_ATTRIBUTES) {
-            cerr << "No existe el ejecutable de " << algo.first << ": " << algo.second << '\n';
+    for (const auto& a : algos) {
+        DWORD attr = GetFileAttributesA(a.second.c_str());
+        if (attr == INVALID_FILE_ATTRIBUTES) {
+            std::cerr << "No existe el ejecutable de " << a.first << ": " << a.second << '\n';
             return 1;
         }
     }
 
     string csvPath = joinPath(measurementsDir, "measurements.csv");
-    ofstream csv(csvPath, ios::out | ios::trunc);
+    std::ofstream csv(csvPath, std::ios::out | std::ios::trunc);
     if (!csv) {
-        cerr << "No se pudo crear: " << csvPath << '\n';
+        std::cerr << "No se pudo crear: " << csvPath << '\n';
         return 1;
     }
 
     csv << "case,algorithm,time_ms,memory_kb,return_code,ok,output_file,stderr_file\n";
 
-    cout << "Inputs: " << inputsDir << '\n';
-    cout << "Outputs: " << outputsDir << '\n';
-    cout << "Measurements: " << measurementsDir << '\n';
-    cout << "Casos encontrados: " << inputFiles.size() << "\n\n";
+    std::cout << "Inputs: " << inputsDir << '\n';
+    std::cout << "Outputs: " << outputsDir << '\n';
+    std::cout << "Measurements: " << measurementsDir << '\n';
+    std::cout << "Casos encontrados: " << inputFiles.size() << "\n\n";
 
     for (const string& inputFile : inputFiles) {
         string caseName = fileStem(inputFile);
-        cout << "== " << caseName << " ==\n";
 
-        for (const auto& algo : algorithms) {
-            string outFile = joinPath(joinPath(outputsDir, algo.first), caseName + ".txt");
-            string errFile = joinPath(measurementsDir, caseName + "_" + algo.first + ".stderr.txt");
+        int n = 0, M = 0, E = 0;
+        bool hasHeader = readCaseHeader(inputFile, n, M, E);
+        bool skipBrute = (!hasHeader || n > 8);
 
-            RunResult res = runProcessWindows(algo.second, inputFile, outFile, errFile);
+        std::cout << "== " << caseName << " ==\n";
+
+        for (const auto& a : algos) {
+            string outFile = joinPath(joinPath(outputsDir, a.first), caseName + ".txt");
+            string errFile = joinPath(measurementsDir, caseName + "_" + a.first + ".stderr.txt");
+
+            if (a.first == "brute" && skipBrute) {
+                writeTextFile(outFile, "");
+                writeTextFile(errFile, "SKIPPED_TOO_LARGE\n");
+                csv << caseName << ',' << a.first << ',' << -1 << ',' << -1 << ',' << -2 << ',' << 0 << ','
+                    << outFile << ',' << errFile << '\n';
+                std::cout << "  brute: omitido por tamano [SKIPPED_TOO_LARGE]\n";
+                continue;
+            }
+
+            RunResult res = runProcessWindows(a.second, inputFile, outFile, errFile);
 
             writeTextFile(outFile, res.stdoutText);
             writeTextFile(errFile, res.stderrText);
 
             bool ok = res.launched && res.finished && res.returnCode == 0;
-            csv << caseName << ','
-                << algo.first << ','
-                << res.timeMs << ','
-                << res.memoryKb << ','
-                << res.returnCode << ','
-                << (ok ? 1 : 0) << ','
-                << outFile << ','
-                << errFile << '\n';
+            csv << caseName << ',' << a.first << ',' << res.timeMs << ',' << res.memoryKb << ','
+                << res.returnCode << ',' << (ok ? 1 : 0) << ',' << outFile << ',' << errFile << '\n';
 
-            cout << "  " << algo.first << ": ";
+            std::cout << "  " << a.first << ": ";
             if (!res.launched) {
-                cout << "no se pudo ejecutar";
+                std::cout << "no se pudo ejecutar";
             } else if (!res.finished) {
-                cout << "no terminó";
+                std::cout << "no termino";
+            } else if (res.stdoutText.empty()) {
+                std::cout << "<sin salida>";
             } else {
-                if (res.stdoutText.empty()) {
-                    cout << "<sin salida>";
-                } else {
-                    cout << res.stdoutText;
-                }
+                std::cout << res.stdoutText;
             }
-            cout << " [" << res.timeMs << " ms, " << res.memoryKb << " KB, rc=" << res.returnCode << "]\n";
+            std::cout << " [" << res.timeMs << " ms, " << res.memoryKb << " KB, rc=" << res.returnCode << "]\n";
         }
 
-        cout << '\n';
+        std::cout << '\n';
     }
 
-    cout << "CSV generado en: " << csvPath << '\n';
+    std::cout << "CSV generado en: " << csvPath << '\n';
     return 0;
 }
