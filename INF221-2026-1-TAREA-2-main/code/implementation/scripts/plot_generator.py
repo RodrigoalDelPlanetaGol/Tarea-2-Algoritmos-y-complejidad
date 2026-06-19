@@ -1,40 +1,57 @@
 #!/usr/bin/env python3
-"""
-plot_generator.py
-
-Genera gráficos para la Tarea 2 de Algoritmos y Complejidad (AniMarathon).
-
-Entradas esperadas:
-- measurements.csv con columnas:
-    case,algorithm,time_ms,memory_kb,return_code,ok,output_file,stderr_file
-- opcionalmente, la carpeta data/outputs/ con subcarpetas:
-    brute/, dp/, greedy1/, greedy2/
-  y un archivo .txt por caso en cada carpeta, conteniendo solo un número:
-    la satisfacción total obtenida por ese algoritmo.
-
-Salidas:
-- tiempo_vs_n.png
-- memoria_vs_n.png
-- calidad_greedy_vs_optimo.png (si se entrega --outputs)
-
-Uso sugerido:
-    python plot_generator.py --measurements data/measurements/measurements.csv --outdir data/plots
-    python plot_generator.py --measurements data/measurements/measurements.csv --outputs data/outputs --outdir data/plots
-"""
-
 from __future__ import annotations
 
+"""Genera gráficos para la Tarea 2 de Algoritmos y Complejidad (AniMarathon).
+
+Este script asume que `general.cpp` ya generó un `measurements.csv` con las
+columnas:
+case,algorithm,n,M,E,total_chapters,total_duration,total_energy,time_ms,
+memory_kb,return_code,ok,skipped,output_file,stderr_file
+
+Gráficos que produce:
+- tiempo_vs_n.png
+- memoria_vs_n.png
+- tiempo_vs_capitulos.png
+- memoria_vs_capitulos.png
+- tiempo_vs_M.png
+- memoria_vs_M.png
+- tiempo_vs_E.png
+- memoria_vs_E.png
+- tiempo_por_algoritmo.png
+- memoria_por_algoritmo.png
+- calidad_greedy_vs_optimo.png
+
+Notas:
+- En los gráficos de tiempo se usa escala logarítmica en Y para que los valores
+  muy grandes de brute-force no aplasten al resto.
+- Las etiquetas y títulos indican claramente la variable del eje X.
+"""
+
 import argparse
-from pathlib import Path
 import re
-import pandas as pd
+from pathlib import Path
+from typing import Iterable
+
 import matplotlib.pyplot as plt
+import pandas as pd
+
+ALG_ORDER = ["brute", "dp", "greedy1", "greedy2"]
+
+
+def default_paths(script_dir: Path):
+    repo_root = script_dir.parents[2]
+    impl_dir = repo_root / "code" / "implementation"
+    return (
+        impl_dir / "data" / "measurements" / "measurements.csv",
+        impl_dir / "data" / "outputs",
+        impl_dir / "data" / "plots",
+    )
 
 
 def parse_case_n(case_name: str) -> int:
     m = re.match(r"testcases_(\d+)_\d+$", case_name)
     if not m:
-        raise ValueError(f"No pude extraer n desde el nombre del caso: {case_name}")
+        raise ValueError(f"No pude extraer n desde el caso: {case_name}")
     return int(m.group(1))
 
 
@@ -45,100 +62,116 @@ def read_single_number(path: Path):
         return None
     if not text:
         return None
+    token = text.split()[0]
     try:
-        return int(text.split()[0])
+        return int(token)
     except ValueError:
         try:
-            return float(text.split()[0])
+            return float(token)
         except ValueError:
             return None
 
 
 def load_measurements(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path)
-    if "case" not in df.columns or "algorithm" not in df.columns:
-        raise ValueError("El CSV no tiene las columnas esperadas.")
-    df["n"] = df["case"].map(parse_case_n)
+    required = {
+        "case", "algorithm", "n", "M", "E", "total_chapters",
+        "time_ms", "memory_kb", "return_code"
+    }
+    missing = required.difference(df.columns)
+    if missing:
+        raise ValueError(f"Faltan columnas en measurements.csv: {sorted(missing)}")
     return df
 
 
-def save_lineplot(df: pd.DataFrame, value_col: str, title: str, ylabel: str, out_path: Path,
-                  algorithms=("brute", "dp", "greedy1", "greedy2")) -> None:
-    # Promedio por n, porque cada tamaño puede tener varias instancias.
-    agg = (
-        df[df["return_code"] >= -1]
-        .groupby(["n", "algorithm"], as_index=False)
-        .agg(**{value_col: (value_col, "mean")})
+def _agg_mean(df: pd.DataFrame, x_col: str, y_col: str) -> pd.DataFrame:
+    # Excluye registros omitidos/skipped y errores.
+    valid = df[df["return_code"] >= -1].copy()
+    valid = valid[pd.notna(valid[x_col])]
+    return (
+        valid.groupby([x_col, "algorithm"], as_index=False)
+        .agg(**{y_col: (y_col, "mean")})
+        .sort_values([x_col, "algorithm"])
     )
 
-    plt.figure(figsize=(8, 5))
-    for algo in algorithms:
-        sub = agg[agg["algorithm"] == algo].sort_values("n")
+
+def save_lineplot(
+    df: pd.DataFrame,
+    x_col: str,
+    x_label: str,
+    title: str,
+    y_col: str,
+    y_label: str,
+    out_path: Path,
+    logy: bool = False,
+) -> None:
+    agg = _agg_mean(df, x_col=x_col, y_col=y_col)
+
+    plt.figure(figsize=(9, 5.5))
+    for algo in ALG_ORDER:
+        sub = agg[agg["algorithm"] == algo].sort_values(x_col)
         if sub.empty:
             continue
-        plt.plot(sub["n"], sub[value_col], marker="o", linewidth=2, label=algo)
+        plt.plot(sub[x_col], sub[y_col], marker="o", linewidth=2, label=algo)
 
-    plt.xlabel("Cantidad de animes (n)")
-    plt.ylabel(ylabel)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
     plt.title(title)
     plt.grid(True, alpha=0.3)
+    if logy:
+        plt.yscale("log")
+        plt.ylabel(f"{y_label} (escala logarítmica)")
     plt.legend()
     plt.tight_layout()
     plt.savefig(out_path, dpi=180)
     plt.close()
 
 
-def load_output_values(outputs_dir: Path, case_names) -> pd.DataFrame:
-    rows = []
-    for case in case_names:
-        for algo in ("dp", "greedy1", "greedy2"):
-            path = outputs_dir / algo / f"{case}.txt"
-            val = read_single_number(path)
-            rows.append({"case": case, "algorithm": algo, "value": val})
-    return pd.DataFrame(rows)
+def save_barplot(df: pd.DataFrame, y_col: str, title: str, y_label: str, out_path: Path) -> None:
+    valid = df[df["return_code"] >= -1].copy()
+    agg = valid.groupby("algorithm", as_index=False).agg(**{y_col: (y_col, "mean")})
+    agg["algorithm"] = pd.Categorical(agg["algorithm"], categories=ALG_ORDER, ordered=True)
+    agg = agg.sort_values("algorithm")
+
+    plt.figure(figsize=(7, 5))
+    plt.bar(agg["algorithm"].astype(str), agg[y_col])
+    plt.xlabel("Algoritmo")
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.grid(True, axis="y", alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=180)
+    plt.close()
 
 
 def save_quality_plot(measurements: pd.DataFrame, outputs_dir: Path, out_path: Path) -> bool:
-    # Tomamos dp como óptimo de referencia.
-    values = load_output_values(outputs_dir, measurements["case"].unique())
-    if values["value"].isna().all():
-        return False
-
-    pivot = values.pivot(index="case", columns="algorithm", values="value").reset_index()
-    pivot["n"] = pivot["case"].map(parse_case_n)
-
-    # Unimos con el caso para comparar greedy / dp.
-    quality_rows = []
-    for _, row in pivot.iterrows():
-        opt = row.get("dp")
-        if pd.isna(opt) or opt == 0:
+    rows = []
+    for case in measurements["case"].drop_duplicates():
+        dp_val = read_single_number(outputs_dir / "dp" / f"{case}.txt")
+        if dp_val is None or dp_val == 0:
             continue
+        n = parse_case_n(case)
         for algo in ("greedy1", "greedy2"):
-            g = row.get(algo)
-            if pd.isna(g):
+            g_val = read_single_number(outputs_dir / algo / f"{case}.txt")
+            if g_val is None:
                 continue
-            quality_rows.append({
-                "n": row["n"],
-                "algorithm": algo,
-                "quality": float(g) / float(opt),
-            })
+            rows.append({"n": n, "algorithm": algo, "quality": g_val / dp_val})
 
-    qdf = pd.DataFrame(quality_rows)
-    if qdf.empty:
+    if not rows:
         return False
 
+    qdf = pd.DataFrame(rows)
     agg = qdf.groupby(["n", "algorithm"], as_index=False).agg(quality=("quality", "mean"))
 
-    plt.figure(figsize=(8, 5))
+    plt.figure(figsize=(9, 5.5))
     for algo in ("greedy1", "greedy2"):
         sub = agg[agg["algorithm"] == algo].sort_values("n")
-        if sub.empty:
-            continue
-        plt.plot(sub["n"], sub["quality"], marker="o", linewidth=2, label=algo)
+        if not sub.empty:
+            plt.plot(sub["n"], sub["quality"], marker="o", linewidth=2, label=algo)
 
     plt.axhline(1.0, linestyle="--", linewidth=1)
     plt.xlabel("Cantidad de animes (n)")
-    plt.ylabel("calidad = greedy / óptimo")
+    plt.ylabel("Calidad = greedy / óptimo")
     plt.title("Calidad de solución de greedy respecto del óptimo (DP)")
     plt.grid(True, alpha=0.3)
     plt.legend()
@@ -150,58 +183,107 @@ def save_quality_plot(measurements: pd.DataFrame, outputs_dir: Path, out_path: P
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generador de gráficos para AniMarathon")
-    parser.add_argument(
-        "--measurements",
-        type=Path,
-        required=True,
-        help="Ruta al archivo measurements.csv",
-    )
-    parser.add_argument(
-        "--outputs",
-        type=Path,
-        default=None,
-        help="Carpeta data/outputs para calcular calidad greedy/óptimo",
-    )
-    parser.add_argument(
-        "--outdir",
-        type=Path,
-        default=Path("data/plots"),
-        help="Carpeta destino de los PNG",
-    )
+    parser.add_argument("--measurements", type=Path, default=None, help="Ruta a measurements.csv")
+    parser.add_argument("--outputs", type=Path, default=None, help="Carpeta data/outputs")
+    parser.add_argument("--outdir", type=Path, default=None, help="Carpeta destino de PNG")
     args = parser.parse_args()
 
-    args.outdir.mkdir(parents=True, exist_ok=True)
+    script_dir = Path(__file__).resolve().parent
+    default_measurements, default_outputs, default_outdir = default_paths(script_dir)
 
-    df = load_measurements(args.measurements)
+    measurements_path = args.measurements or default_measurements
+    outputs_dir = args.outputs or default_outputs
+    outdir = args.outdir or default_outdir
+    outdir.mkdir(parents=True, exist_ok=True)
 
+    if not measurements_path.exists():
+        raise FileNotFoundError(f"No encontré measurements.csv en: {measurements_path}")
+
+    df = load_measurements(measurements_path)
+
+    # Gráficos por tamaño de entrada
     save_lineplot(
-        df=df,
-        value_col="time_ms",
-        title="Tiempo de ejecución según tamaño de entrada",
-        ylabel="Tiempo promedio (ms)",
-        out_path=args.outdir / "tiempo_vs_n.png",
+        df, "n", "Cantidad de animes (n)",
+        "Tiempo de ejecución según cantidad de animes",
+        "time_ms", "Tiempo promedio (ms)",
+        outdir / "tiempo_vs_n.png",
+        logy=True,
+    )
+    save_lineplot(
+        df, "n", "Cantidad de animes (n)",
+        "Uso de memoria según cantidad de animes",
+        "memory_kb", "Memoria promedio (KB)",
+        outdir / "memoria_vs_n.png",
+        logy=False,
     )
 
+    # Gráficos por cantidad de capítulos
     save_lineplot(
-        df=df,
-        value_col="memory_kb",
-        title="Uso de memoria según tamaño de entrada",
-        ylabel="Memoria promedio (KB)",
-        out_path=args.outdir / "memoria_vs_n.png",
+        df, "total_chapters", "Cantidad total de capítulos",
+        "Tiempo de ejecución según cantidad total de capítulos",
+        "time_ms", "Tiempo promedio (ms)",
+        outdir / "tiempo_vs_capitulos.png",
+        logy=True,
+    )
+    save_lineplot(
+        df, "total_chapters", "Cantidad total de capítulos",
+        "Uso de memoria según cantidad total de capítulos",
+        "memory_kb", "Memoria promedio (KB)",
+        outdir / "memoria_vs_capitulos.png",
+        logy=False,
     )
 
-    if args.outputs is not None and args.outputs.exists():
-        ok = save_quality_plot(
-            measurements=df,
-            outputs_dir=args.outputs,
-            out_path=args.outdir / "calidad_greedy_vs_optimo.png",
-        )
-        if ok:
-            print("Calidad generada.")
-        else:
-            print("No fue posible generar la calidad con los outputs entregados.")
+    # Gráficos por minutos disponibles
+    save_lineplot(
+        df, "M", "Minutos disponibles (M)",
+        "Tiempo de ejecución según minutos disponibles",
+        "time_ms", "Tiempo promedio (ms)",
+        outdir / "tiempo_vs_M.png",
+        logy=True,
+    )
+    save_lineplot(
+        df, "M", "Minutos disponibles (M)",
+        "Uso de memoria según minutos disponibles",
+        "memory_kb", "Memoria promedio (KB)",
+        outdir / "memoria_vs_M.png",
+        logy=False,
+    )
 
-    print(f"Gráficos generados en: {args.outdir.resolve()}")
+    # Gráficos por energía disponible
+    save_lineplot(
+        df, "E", "Energía disponible (E)",
+        "Tiempo de ejecución según energía disponible",
+        "time_ms", "Tiempo promedio (ms)",
+        outdir / "tiempo_vs_E.png",
+        logy=True,
+    )
+    save_lineplot(
+        df, "E", "Energía disponible (E)",
+        "Uso de memoria según energía disponible",
+        "memory_kb", "Memoria promedio (KB)",
+        outdir / "memoria_vs_E.png",
+        logy=False,
+    )
+
+    # Resumen por algoritmo
+    save_barplot(
+        df, "time_ms",
+        "Tiempo promedio por algoritmo (promedio global sobre casos ejecutados)",
+        "Tiempo promedio (ms)",
+        outdir / "tiempo_por_algoritmo.png",
+    )
+    save_barplot(
+        df, "memory_kb",
+        "Memoria promedio por algoritmo (promedio global sobre casos ejecutados)",
+        "Memoria promedio (KB)",
+        outdir / "memoria_por_algoritmo.png",
+    )
+
+    # Calidad greedy vs óptimo
+    if outputs_dir.exists():
+        save_quality_plot(df, outputs_dir, outdir / "calidad_greedy_vs_optimo.png")
+
+    print(f"Gráficos generados en: {outdir.resolve()}")
     return 0
 
 

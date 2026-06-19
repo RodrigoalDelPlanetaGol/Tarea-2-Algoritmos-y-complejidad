@@ -11,6 +11,26 @@
 #include <utility>
 #include <vector>
 
+/*
+ * INF-221 - Tarea 2: AniMarathon
+ * general.cpp
+ *
+ * Ejecuta los cuatro algoritmos sobre todos los .txt de data/inputs,
+ * guarda sus salidas en data/outputs/<algoritmo>/ y registra tiempo/memoria
+ * en data/measurements/measurements.csv.
+ *
+ * Esta versión además guarda metadatos por caso:
+ *   - n
+ *   - M
+ *   - E
+ *   - total_chapters
+ *   - total_duration
+ *   - total_energy
+ *
+ * Compilación recomendada en MinGW:
+ *   g++ -std=c++17 -O2 general.cpp -o general.exe -lpsapi
+ */
+
 using std::string;
 using std::vector;
 
@@ -22,6 +42,16 @@ struct RunResult {
     long long memoryKb = -1;
     string stdoutText;
     string stderrText;
+};
+
+struct CaseMeta {
+    int n = 0;
+    int M = 0;
+    int E = 0;
+    int totalChapters = 0;
+    long long totalDuration = 0;
+    long long totalEnergy = 0;
+    bool ok = false;
 };
 
 static string normalizeSlashes(string s) {
@@ -129,10 +159,34 @@ static string readTextFile(const string& path) {
     return ss.str();
 }
 
-static bool readCaseHeader(const string& inputFile, int& n, int& M, int& E) {
+static bool readCaseMetadata(const string& inputFile, CaseMeta& meta) {
     std::ifstream in(inputFile);
     if (!in) return false;
-    return static_cast<bool>(in >> n >> M >> E);
+
+    string animeName;
+    int q = 0;
+    long long b = 0;
+    int t = 0, c = 0;
+    long long v = 0;
+
+    if (!(in >> meta.n >> meta.M >> meta.E)) return false;
+
+    meta.totalChapters = 0;
+    meta.totalDuration = 0;
+    meta.totalEnergy = 0;
+
+    for (int i = 0; i < meta.n; ++i) {
+        if (!(in >> animeName >> q >> b)) return false;
+        meta.totalChapters += q;
+        for (int j = 0; j < q; ++j) {
+            if (!(in >> t >> c >> v)) return false;
+            meta.totalDuration += t;
+            meta.totalEnergy += c;
+        }
+    }
+
+    meta.ok = true;
+    return true;
 }
 
 static RunResult runProcessWindows(const string& exe,
@@ -288,7 +342,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    csv << "case,algorithm,time_ms,memory_kb,return_code,ok,output_file,stderr_file\n";
+    csv << "case,algorithm,n,M,E,total_chapters,total_duration,total_energy,time_ms,memory_kb,return_code,ok,skipped,output_file,stderr_file\n";
 
     std::cout << "Inputs: " << inputsDir << '\n';
     std::cout << "Outputs: " << outputsDir << '\n';
@@ -298,9 +352,9 @@ int main(int argc, char* argv[]) {
     for (const string& inputFile : inputFiles) {
         string caseName = fileStem(inputFile);
 
-        int n = 0, M = 0, E = 0;
-        bool hasHeader = readCaseHeader(inputFile, n, M, E);
-        bool skipBrute = (!hasHeader || n > 8);
+        CaseMeta meta;
+        bool hasHeader = readCaseMetadata(inputFile, meta);
+        bool skipBrute = (!hasHeader || meta.n > 8);
 
         std::cout << "== " << caseName << " ==\n";
 
@@ -311,7 +365,10 @@ int main(int argc, char* argv[]) {
             if (a.first == "brute" && skipBrute) {
                 writeTextFile(outFile, "");
                 writeTextFile(errFile, "SKIPPED_TOO_LARGE\n");
-                csv << caseName << ',' << a.first << ',' << -1 << ',' << -1 << ',' << -2 << ',' << 0 << ','
+                csv << caseName << ',' << a.first << ','
+                    << meta.n << ',' << meta.M << ',' << meta.E << ','
+                    << meta.totalChapters << ',' << meta.totalDuration << ',' << meta.totalEnergy << ','
+                    << -1 << ',' << -1 << ',' << -2 << ',' << 0 << ',' << 1 << ','
                     << outFile << ',' << errFile << '\n';
                 std::cout << "  brute: omitido por tamano [SKIPPED_TOO_LARGE]\n";
                 continue;
@@ -323,8 +380,11 @@ int main(int argc, char* argv[]) {
             writeTextFile(errFile, res.stderrText);
 
             bool ok = res.launched && res.finished && res.returnCode == 0;
-            csv << caseName << ',' << a.first << ',' << res.timeMs << ',' << res.memoryKb << ','
-                << res.returnCode << ',' << (ok ? 1 : 0) << ',' << outFile << ',' << errFile << '\n';
+            csv << caseName << ',' << a.first << ','
+                << meta.n << ',' << meta.M << ',' << meta.E << ','
+                << meta.totalChapters << ',' << meta.totalDuration << ',' << meta.totalEnergy << ','
+                << res.timeMs << ',' << res.memoryKb << ',' << res.returnCode << ','
+                << (ok ? 1 : 0) << ',' << 0 << ',' << outFile << ',' << errFile << '\n';
 
             std::cout << "  " << a.first << ": ";
             if (!res.launched) {

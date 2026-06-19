@@ -1,8 +1,26 @@
 from __future__ import annotations
 """
-Este es el script para generar unos pocos casos de prueba (FALTA COMENTAR!!)
-"""
+Generador de casos para AniMarathon.
 
+La idea de este script no es producir "todos" los casos posibles, sino familias
+controladas para que luego los gráficos permitan estudiar un efecto a la vez:
+
+- vary_n:    cambia la cantidad de animes (n), manteniendo bastante estable el resto.
+- vary_q:    cambia la cantidad de capítulos por anime (total_chapters crece).
+- vary_m:    cambia solo el presupuesto de minutos M.
+- vary_e:    cambia solo el presupuesto de energía E.
+- small:     casos chicos para validar correctitud.
+
+Los archivos se guardan en:
+    code/implementation/data/inputs/
+
+El nombre de cada archivo indica la familia, por ejemplo:
+    vary_n_n03_1.txt
+    vary_m_m0500_1.txt
+    vary_e_e0100_1.txt
+
+Eso permite agruparlos después para los gráficos.
+"""
 
 import argparse
 import random
@@ -11,7 +29,6 @@ from pathlib import Path
 from typing import Iterable, List, Tuple
 
 
-# Límites del enunciado
 MAX_N = 200
 MAX_Q = 30
 MAX_TOTAL_Q = 700
@@ -39,16 +56,17 @@ class Anime:
 
 @dataclass(frozen=True)
 class CaseSpec:
+    family: str
+    label: str
     n: int
     q_range: Tuple[int, int]
-    m_range: Tuple[int, int]
-    e_range: Tuple[int, int]
+    m_value: int
+    e_value: int
     bonus_range: Tuple[int, int]
     value_range: Tuple[int, int]
     duration_range: Tuple[int, int]
     energy_range: Tuple[int, int]
     count: int
-    prefix: str
 
 
 def clamp(x: int, lo: int, hi: int) -> int:
@@ -59,23 +77,30 @@ def make_anime_name(case_prefix: str, anime_idx: int) -> str:
     return f"{case_prefix}_anime_{anime_idx}"
 
 
-def build_case(rng: random.Random, spec: CaseSpec, case_id: int) -> Tuple[int, int, int, List[Anime]]:
+def build_case(rng: random.Random, spec: CaseSpec, case_id: int) -> tuple[int, int, int, list[Anime]]:
+    """Construye una instancia válida del problema.
 
+    La construcción usa:
+    - un número base de animes,
+    - una cantidad de capítulos por anime tomada desde un rango,
+    - minutos/energía fijos por familia o ligeramente ajustados por seguridad.
 
+    En casos grandes, se limita el total de capítulos a 700 reduciendo capítulos
+    aleatoriamente de animes que tengan más de 1 capítulo.
+    """
     n = clamp(spec.n, 1, MAX_N)
 
     q_min, q_max = spec.q_range
     q_min = clamp(q_min, 1, MAX_Q)
     q_max = clamp(q_max, q_min, MAX_Q)
 
-    chapters_per_anime: List[int] = []
+    chapters_per_anime: list[int] = []
     total_q = 0
     for _ in range(n):
         q = rng.randint(q_min, q_max)
         chapters_per_anime.append(q)
         total_q += q
 
-    # Si excede el máximo total permitido, reducimos de a uno.
     while total_q > MAX_TOTAL_Q:
         candidates = [i for i, q in enumerate(chapters_per_anime) if q > 1]
         if not candidates:
@@ -84,13 +109,13 @@ def build_case(rng: random.Random, spec: CaseSpec, case_id: int) -> Tuple[int, i
         chapters_per_anime[i] -= 1
         total_q -= 1
 
-    animes: List[Anime] = []
+    animes: list[Anime] = []
     sum_duration_full = 0
     sum_energy_full = 0
 
     for i in range(n):
         q = chapters_per_anime[i]
-        chapters: List[Chapter] = []
+        chapters: list[Chapter] = []
         full_duration = 0
         full_energy = 0
         full_value = 0
@@ -107,27 +132,32 @@ def build_case(rng: random.Random, spec: CaseSpec, case_id: int) -> Tuple[int, i
         bonus_low, bonus_high = spec.bonus_range
         bonus_low = clamp(bonus_low, 0, MAX_B)
         bonus_high = clamp(bonus_high, bonus_low, MAX_B)
-        bonus = clamp(rng.randint(bonus_low, bonus_high) + rng.randint(0, max(1, full_value // 4)), 0, MAX_B)
+        bonus = clamp(
+            rng.randint(bonus_low, bonus_high) + rng.randint(0, max(1, full_value // 4)),
+            0,
+            MAX_B,
+        )
 
-        animes.append(Anime(name=make_anime_name(spec.prefix, i + 1), chapters=chapters, bonus=bonus))
+        animes.append(Anime(name=make_anime_name(spec.family, i + 1), chapters=chapters, bonus=bonus))
         sum_duration_full += full_duration
         sum_energy_full += full_energy
 
-    def budget_from_total(total: int, low: int, high: int, cap: int) -> int:
-        if total <= 0:
-            return low
-        frac = rng.uniform(0.35, 0.70)
-        budget = int(total * frac)
-        budget = clamp(budget, low, high)
-        return clamp(budget, 1, cap)
+    # Por diseño, algunas familias mantienen M/E fijos para aislar una variable.
+    # Aun así, evitamos valores imposibles o triviales al ajustar ligeramente.
+    M = clamp(spec.m_value, 1, MAX_M)
+    E = clamp(spec.e_value, 1, MAX_E)
 
-    M = budget_from_total(sum_duration_full, spec.m_range[0], spec.m_range[1], MAX_M)
-    E = budget_from_total(sum_energy_full, spec.e_range[0], spec.e_range[1], MAX_E)
-
-    # En casos pequeños aseguramos que al menos haya algo visible para comparar.
+    # Aseguramos que haya al menos un capítulo posible en casos pequeños.
     if n <= 8:
-        M = max(M, min(MAX_M, max(ch.duration for a in animes for ch in a.chapters)))
-        E = max(E, min(MAX_E, max(ch.energy for a in animes for ch in a.chapters)))
+        max_duration = max(ch.duration for anime in animes for ch in anime.chapters)
+        max_energy = max(ch.energy for anime in animes for ch in anime.chapters)
+        M = max(M, min(MAX_M, max_duration))
+        E = max(E, min(MAX_E, max_energy))
+
+    # Como respaldo, si M/E quedaron demasiado altos o bajos respecto del caso,
+    # los mantenemos dentro del rango del enunciado.
+    M = clamp(M, 1, MAX_M)
+    E = clamp(E, 1, MAX_E)
 
     return n, M, E, animes
 
@@ -141,27 +171,59 @@ def write_case(path: Path, n: int, M: int, E: int, animes: Iterable[Anime]) -> N
             for ch in anime.chapters:
                 f.write(f"{ch.duration} {ch.energy} {ch.value}\n")
 
-def generate_cases(outdir: Path, seed: int) -> List[Path]:
+
+def generate_cases(outdir: Path, seed: int) -> list[Path]:
     rng = random.Random(seed)
 
-    # Casos acotados
     specs = [
-        CaseSpec(3, (1, 4), (20, 250), (10, 120), (0, 50), (1, 120), (1, 40), (1, 15), 3, "small3"),
-        CaseSpec(5, (1, 5), (30, 350), (15, 160), (0, 80), (1, 150), (1, 50), (1, 20), 3, "small5"),
-        CaseSpec(8, (1, 6), (50, 500), (20, 220), (0, 120), (1, 180), (1, 60), (1, 25), 2, "small8"),
-        CaseSpec(20, (2, 10), (200, 900), (60, 300), (0, 300), (1, 300), (1, 80), (1, 30), 3, "medium20"),
-        CaseSpec(40, (2, 12), (400, 1400), (80, 400), (0, 500), (1, 500), (1, 100), (1, 40), 2, "medium40"),
-        CaseSpec(80, (2, 12), (700, 2200), (120, 500), (0, 700), (1, 700), (1, 120), (1, 50), 1, "medium80"),
-        CaseSpec(100, (2, 10), (1000, 2600), (150, 500), (0, 900), (1, 900), (1, 140), (1, 60), 1, "large100"),
-        CaseSpec(150, (2, 8), (1200, 3000), (180, 500), (0, 1200), (1, 1200), (1, 160), (1, 70), 1, "large150"),
-        CaseSpec(200, (1, 6), (1500, 3000), (200, 500), (0, 1500), (1, 1500), (1, 180), (1, 80), 1, "large200"),
+        # Casos chicos para validación de correctitud.
+        CaseSpec("small", "n03", 3, (1, 4), 240, 90, (0, 50), (1, 120), (1, 40), (1, 15), 2),
+        CaseSpec("small", "n05", 5, (1, 5), 260, 100, (0, 80), (1, 150), (1, 50), (1, 20), 2),
+        CaseSpec("small", "n08", 8, (1, 6), 320, 120, (0, 120), (1, 180), (1, 60), (1, 25), 2),
+
+        # Vary n: cambia n y mantiene relativamente estable el resto.
+        CaseSpec("vary_n", "n03", 3, (2, 5), 1200, 220, (0, 200), (1, 200), (1, 80), (1, 30), 1),
+        CaseSpec("vary_n", "n05", 5, (2, 5), 1200, 220, (0, 200), (1, 200), (1, 80), (1, 30), 1),
+        CaseSpec("vary_n", "n08", 8, (2, 5), 1200, 220, (0, 200), (1, 200), (1, 80), (1, 30), 1),
+        CaseSpec("vary_n", "n20", 20, (2, 5), 1200, 220, (0, 200), (1, 200), (1, 80), (1, 30), 1),
+        CaseSpec("vary_n", "n40", 40, (2, 5), 1200, 220, (0, 200), (1, 200), (1, 80), (1, 30), 1),
+        CaseSpec("vary_n", "n80", 80, (2, 5), 1200, 220, (0, 200), (1, 200), (1, 80), (1, 30), 1),
+        CaseSpec("vary_n", "n100", 100, (2, 5), 1200, 220, (0, 200), (1, 200), (1, 80), (1, 30), 1),
+        CaseSpec("vary_n", "n150", 150, (2, 5), 1200, 220, (0, 200), (1, 200), (1, 80), (1, 30), 1),
+        CaseSpec("vary_n", "n200", 200, (1, 4), 1200, 220, (0, 200), (1, 200), (1, 80), (1, 30), 1),
+
+        # Vary chapters: n fijo, q_range crece. El eje útil luego será total_chapters.
+        CaseSpec("vary_q", "q02", 40, (1, 2), 1500, 250, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_q", "q04", 40, (1, 4), 1500, 250, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_q", "q06", 40, (1, 6), 1500, 250, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_q", "q08", 40, (1, 8), 1500, 250, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_q", "q10", 40, (1, 10), 1500, 250, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_q", "q12", 40, (1, 12), 1500, 250, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+
+        # Vary M: n y capítulos casi fijos, cambia solo el presupuesto de minutos.
+        CaseSpec("vary_m", "m0200", 40, (2, 5), 200, 300, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_m", "m0500", 40, (2, 5), 500, 300, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_m", "m0800", 40, (2, 5), 800, 300, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_m", "m1200", 40, (2, 5), 1200, 300, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_m", "m1800", 40, (2, 5), 1800, 300, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_m", "m2500", 40, (2, 5), 2500, 300, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_m", "m3000", 40, (2, 5), 3000, 300, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+
+        # Vary E: n y capítulos casi fijos, cambia solo el presupuesto de energía.
+        CaseSpec("vary_e", "e0020", 40, (2, 5), 1500, 20, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_e", "e0050", 40, (2, 5), 1500, 50, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_e", "e0100", 40, (2, 5), 1500, 100, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_e", "e0150", 40, (2, 5), 1500, 150, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_e", "e0200", 40, (2, 5), 1500, 200, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_e", "e0300", 40, (2, 5), 1500, 300, (0, 300), (1, 300), (1, 80), (1, 30), 1),
+        CaseSpec("vary_e", "e0500", 40, (2, 5), 1500, 500, (0, 300), (1, 300), (1, 80), (1, 30), 1),
     ]
 
-    generated_paths: List[Path] = []
+    generated_paths: list[Path] = []
     for spec in specs:
         for i in range(1, spec.count + 1):
             n, M, E, animes = build_case(rng, spec, i)
-            filename = f"testcases_{spec.n}_{i}.txt"
+            filename = f"{spec.family}_{spec.label}_{i}.txt"
             path = outdir / filename
             write_case(path, n, M, E, animes)
             generated_paths.append(path)
