@@ -1,26 +1,9 @@
 #include <algorithm>
 #include <iostream>
-#include <limits>
 #include <string>
 #include <vector>
 
 using namespace std;
-
-/*
- *   Prueba todas las combinaciones posibles de prefijos válidos de cada anime:
- *     - elegir 0 capítulos
- *     - elegir 1 capítulo
- *     - elegir 2 capítulos
- *     - ...
- *     - elegir q_i capítulos
- *
- * Restricciones:
- *   - Solo se puede tomar un prefijo de cada anime.
- *   - La suma de minutos no puede exceder M.
- *   - La suma de energía no puede exceder E.
- *
- * Esta implementación está pensada para casos pequeños.
- */
 
 struct Chapter {
     int t = 0;
@@ -36,26 +19,48 @@ struct Option {
 
 struct AnimeOptions {
     vector<Option> options;
-    long long suffixUpperBound = 0;
 };
 
-static inline void fast_io() {
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
+static int g_n = 0;
+static int g_M = 0;
+static int g_E = 0;
+static vector<AnimeOptions> g_groups;
+static vector<long long> g_suffixBest;
+static long long g_best = 0;
+
+static void dfs(int idx, int usedM, int usedE, long long current) {
+    if (usedM > g_M || usedE > g_E) {
+        return;
+    }
+
+    if (idx == g_n) {
+        if (current > g_best) {
+            g_best = current;
+        }
+        return;
+    }
+
+    if (current + g_suffixBest[idx] <= g_best) {
+        return;
+    }
+
+    const vector<Option>& options = g_groups[idx].options;
+    for (const Option& opt : options) {
+        dfs(idx + 1, usedM + opt.t, usedE + opt.c, current + opt.value);
+    }
 }
 
 int main() {
-    fast_io();
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
 
-    int n = 0, M = 0, E = 0;
-    if (!(cin >> n >> M >> E)) {
+    if (!(cin >> g_n >> g_M >> g_E)) {
         return 0;
     }
 
-    vector<AnimeOptions> groups;
-    groups.resize(n);
+    g_groups.assign(g_n, AnimeOptions{});
 
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < g_n; ++i) {
         string animeName;
         int q = 0;
         long long bonus = 0;
@@ -67,12 +72,14 @@ int main() {
         }
 
         vector<Option> options;
-        options.resize(q + 1);
-        options[0] = {0, 0, 0};
+        options.reserve(q + 1);
+
+        options.push_back({0, 0, 0}); // no tomar nada del anime
 
         int prefT = 0;
         int prefC = 0;
         long long prefV = 0;
+
         for (int j = 0; j < q; ++j) {
             prefT += chapters[j].t;
             prefC += chapters[j].c;
@@ -80,54 +87,27 @@ int main() {
 
             long long totalValue = prefV;
             if (j == q - 1) {
-                totalValue += bonus;
+                totalValue += bonus; // bono solo si se completa el anime
             }
-            options[j + 1] = {prefT, prefC, totalValue};
+
+            options.push_back({prefT, prefC, totalValue});
         }
 
-        groups[i].options = options;
+        g_groups[i].options = std::move(options);
     }
 
-    // Poda por cota superior: suma de la mejor opción de cada anime restante.
-    // No considera recursos, así que es una cota optimista válida.
-    vector<long long> suffixBest(n + 1, 0);
-    for (int i = n - 1; i >= 0; --i) {
+    g_suffixBest.assign(g_n + 1, 0);
+    for (int i = g_n - 1; i >= 0; --i) {
         long long bestHere = 0;
-        for (const Option& opt : groups[i].options) {
+        for (const Option& opt : g_groups[i].options) {
             bestHere = max(bestHere, opt.value);
         }
-        suffixBest[i] = suffixBest[i + 1] + bestHere;
+        g_suffixBest[i] = g_suffixBest[i + 1] + bestHere;
     }
 
-    long long best = 0;
+    g_best = 0;
+    dfs(0, 0, 0, 0LL);
 
-    // DFS exhaustivo con poda.
-    // idx: anime actual
-    // usedM / usedE: recursos consumidos
-    // current: satisfacción acumulada
-    auto dfs = [&](auto&& self, int idx, int usedM, int usedE, long long current) -> void {
-        if (usedM > M || usedE > E) {
-            return;
-        }
-        if (idx == n) {
-            if (current > best) {
-                best = current;
-            }
-            return;
-        }
-
-        if (current + suffixBest[idx] <= best) {
-            return;
-        }
-
-        const vector<Option>& options = groups[idx].options;
-        for (const Option& opt : options) {
-            self(self, idx + 1, usedM + opt.t, usedE + opt.c, current + opt.value);
-        }
-    };
-
-    dfs(dfs, 0, 0, 0, 0LL);
-
-    cout << best << '\n';
+    cout << g_best << '\n';
     return 0;
 }
