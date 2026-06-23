@@ -1,9 +1,10 @@
-CXX := C:/MinGW/bin/g++.exe
+CXX ?= g++
 CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -pedantic
 LDFLAGS := -lpsapi
 
 ALG_DIR := algorithms
 DATA_DIR := data
+SCRIPT_DIR := scripts
 
 BRUTE_SRC := $(ALG_DIR)/brute-force.cpp
 DP_SRC := $(ALG_DIR)/dynamic-programming.cpp
