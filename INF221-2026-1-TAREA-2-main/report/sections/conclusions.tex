@@ -1,5 +1,7 @@
-\begin{mdframed}
-    \textbf{La extensión máxima para esta sección es un párrafo breve (máximo 1/4 de página).}
-\end{mdframed}
 
-Escriba una conclusión breve que interprete los resultados más importantes. Cada afirmación debe estar respaldada por los datos presentados.
+
+En esta tarea se implementaron cuatro estrategias para resolver el problema de selección de capítulos por anime bajo restricciones de minutos y energía: fuerza bruta, programación dinámica y dos variantes greedy (greedy 2: satisfacción por energía; greedy 1: satisfacción por minuto). A partir de los experimentos realizados, se observó que la programación dinámica entrega la solución óptima en los casos evaluados, pero a costa de un mayor consumo de tiempo y memoria que los métodos greedy.
+
+La fuerza bruta permitió verificar la correctitud de las otras implementaciones en instancias pequeñas, pero su costo computacional crece rápidamente, por lo que deja de ser práctica para tamaños medianos o grandes. Por su parte, los algoritmos greedy resultaron mucho más rápidos y livianos en memoria, aunque con una calidad de solución inferior a la óptima. Entre ambos, la variante basada en satisfacción por energía mostró un comportamiento más cercano al óptimo que la basada en satisfacción por minuto.
+
+En síntesis, los resultados confirman el trade-off esperado entre exactitud y eficiencia. La programación dinámica es la alternativa adecuada cuando se requiere la mejor solución posible, mientras que las heurísticas greedy son útiles cuando se prioriza rapidez y bajo consumo de recursos. La fuerza bruta cumple un rol principalmente de validación en casos pequeños.

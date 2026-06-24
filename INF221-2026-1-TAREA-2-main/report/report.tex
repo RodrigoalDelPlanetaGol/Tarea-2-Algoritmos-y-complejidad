@@ -1,7 +1,6 @@
 \documentclass[11pt,spanish]{article} % Tipo y tamaño de letra del documento.
 
 \input{preamble.tex}
-
 \input{author.tex}
 
 \headheight=14pt
@@ -20,14 +19,11 @@
 \boolfalse{programs}
 \chead{REPORTE TAREA \tnum~}
 
-
-
 \title{
   \huge
   \textbf{REPORTE TAREA \tnum~ \\ ALGORITMOS Y COMPLEJIDAD} \\[1ex]
   \emph{\textquote{¿Quien ganará? Greedys vs Dinámico vs Bruto.}}
-  }
-
+}
 
 \date{
   \small
@@ -35,13 +31,13 @@
   \currenttime
 }
 
-
-
-
 \begin{document}
 \maketitle
 \thispagestyle{fancy}
 \vspace{-1.0\baselineskip}
+
+\section{Resumen}
+\input{sections/abstract}
 
 \section{Entorno experimental}
 \input{sections/experiment_intro}
@@ -51,6 +47,10 @@
 
 \section{Conclusiones}
 \input{sections/conclusions}
+
+\clearpage
+\section{Implementaciones}
+\input{sections/implementations}
 
 \printbibliography
 
