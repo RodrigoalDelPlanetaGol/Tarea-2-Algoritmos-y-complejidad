@@ -5,6 +5,20 @@
 
 using namespace std;
 
+/*
+Esta implementación realiza una busqueda exhaustiva con poda:
+Prueb distintas combinaciones de capitulos que se puedan ver.
+Si se completa un anime, se suma un bono adicional.
+
+Se hace una búsqued en profundidad (DFS) para recorrer las combinaciones pero
+se aplican podas para no exploraar soluciones que no sirven (como las que se pasan
+del tiempo o energía disponible). Además se hace una estimación del valor máximo
+posible restante para cortar ramas que no pueden mejorar la mejor solución actual.
+
+Este programa se compila junto a los demás algoritmos en 'general.cpp' con
+los casos de prueba generados por 'testcases_generator'
+*/
+
 struct Chapter {
     int t = 0;
     int c = 0;

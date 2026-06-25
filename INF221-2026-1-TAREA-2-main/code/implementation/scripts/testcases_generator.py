@@ -1,19 +1,13 @@
 from __future__ import annotations
 """
-Generador de casos para AniMarathon.
-
-La idea de este script no es producir 'todos' los casos posibles, sino familias
-controladas para que luego los gráficos permitan estudiar un efecto a la vez.
-
-Los archivos se guardan en:
-    code/implementation/data/inputs/
-
-El nombre de cada archivo sigue el formato pedido por el enunciado:
-    testcases_{n}_{i}.txt
-
-donde:
-- n es la cantidad de animes del caso.
-- i es un identificador único para distinguir múltiples casos con el mismo n.
+Este script construye casos de prueba siguiendo el formato del enunciado,
+con el objetivo de evaluar el comportamiento de los algoritmos implementados.
+En lugar de generar casos completamente aleatorios, se definen "familias" de
+instancias donde se controla una variable a la vez (por ejemplo, la cantidad
+de animes, capítulos, minutos o energía disponible). Esto permite luego analizar
+los resultados de forma más clara en los gráficos.
+Para ejecutar este código, abrir una terminal en la carpeta 'scripts/' y ejecutar el comando 
+python testcases_generator.py.
 """
 
 import argparse

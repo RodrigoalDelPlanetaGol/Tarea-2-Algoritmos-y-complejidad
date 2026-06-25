@@ -6,19 +6,20 @@
 using namespace std;
 
 /*
- * Greedy 1: elegir prefijos por mayor satisfacción por minuto.
- *
- * Idea:
- *   - Para cada anime se construyen todos sus prefijos válidos.
- *   - Cada prefijo representa una decisión completa para ese anime:
- *       tomar 0, 1, 2, ..., q capítulos consecutivos desde el inicio.
- *   - Se ordenan todas las opciones por el criterio local:
- *       satisfacción_total / minutos_totales
- *   - Luego se recorren en ese orden y se toma una opción solo si:
- *       * su anime aún no fue escogido
- *       * cabe en los recursos restantes (M, E)
- */
+En este algoritmo greedy se construyen distintas opciones para cada anime,
+considerando ver distintos números de capítulos consecutivos desde el inicio.
 
+Luego, todas estas opciones se ordenan según un criterio local de
+satisfacción por minuto (valor / tiempo), priorizando las que entregan
+más valor en menos tiempo.
+
+Finalmente, se recorren en ese orden y se selecciona una opción por anime
+solo si no se ha elegido antes y si cabe dentro de las restricciones de
+tiempo (M) y energía (E).
+
+Este programa se compila junto a los demás algoritmos en 'general.cpp' con
+los casos de prueba generados por 'testcases_generator'
+*/
 struct Chapter {
     int t = 0;
     int c = 0;

@@ -6,6 +6,19 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
+"""
+Este script se encarga de generar automáticamente los gráficos a partir de 
+las mediciones obtenidas en el archivo measurements.csv, procesando los datos 
+con pandas para calcular promedios y luego utilizando matplotlib para crear 
+visualizaciones como curvas de tiempo y memoria en función de distintos parámetros 
+(n, capítulos, M, E), además de gráficos comparativos por algoritmo y un análisis de 
+calidad donde se comparan los resultados de los algoritmos greedy con la solución 
+óptima (programación dinámica), guardando todos los gráficos generados en la carpeta de
+'data/plots/'.
+Para compilar, se abre una terminal en la carpeta 'scripts/' y se ejecuta el 
+siguiente comando:
+python plot_generator.py --measurements ../data/measurements/measurements.csv --outputs ../data/outputs --outdir ../data/plots
+"""
 
 def default_paths(script_dir: Path):
     repo_root = script_dir.parents[3]

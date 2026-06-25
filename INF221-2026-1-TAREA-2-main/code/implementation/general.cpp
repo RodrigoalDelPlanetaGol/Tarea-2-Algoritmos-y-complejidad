@@ -12,23 +12,15 @@
 #include <vector>
 
 /*
- * INF-221 - Tarea 2: AniMarathon
- * general.cpp
- *
- * Ejecuta los cuatro algoritmos sobre todos los .txt de data/inputs,
- * guarda sus salidas en data/outputs/<algoritmo>/ y registra tiempo/memoria
- * en data/measurements/measurements.csv.
- *
- * Esta versión además guarda metadatos por caso:
- *   - n
- *   - M
- *   - E
- *   - total_chapters
- *   - total_duration
- *   - total_energy
- *
- * Compilación recomendada en MinGW:
- *   g++ -std=c++17 -O2 general.cpp -o general.exe -lpsapi
+ Este programa actúa como el controlador del proceso experimental, ya que 
+ recorre todos los casos de prueba generados, ejecuta cada uno de los algoritmos 
+ implementados (brute-force, programación dinámica y los dos greedy) sobre dichos inputs,
+ guarda sus salidas en las carpetas correspondientes y registra métricas como tiempo de
+ ejecución, uso de memoria y código de retorno en un archivo measurements.csv, el cual 
+ luego se utiliza para el análisis y generación de gráficos; además, 
+ evita ejecutar brute-force en instancias grandes para no incurrir en tiempos excesivos.
+ Para compilar, se debe abrir la terminal en la carpeta 'implementations\' y ejecutar
+ el comando 'make' para ejecutar el makefile.
  */
 
 using std::string;

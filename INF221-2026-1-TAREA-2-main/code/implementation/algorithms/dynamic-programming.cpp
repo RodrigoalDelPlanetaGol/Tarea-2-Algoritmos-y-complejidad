@@ -7,7 +7,16 @@
 
 using namespace std;
 
-//Me falta comentaaaaaar
+/*
+En este algoritmo de programación dinámica se construye una tabla que guarda
+el mejor valor posible considerando los primero animes y distintas combinaciones de tiempo
+y energía disponibles.
+Para cada anime se generan opciones y luego se van combinando usando programación
+dinámica, respetando las restricciones de tiempo (m) y energía (e).
+
+Este programa se compila junto a los demás algoritmos en 'general.cpp' con
+los casos de prueba generados por 'testcases_generator'
+*/
 struct Chapter {
     int t = 0;
     int c = 0;
